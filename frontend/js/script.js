@@ -1,52 +1,58 @@
+// ==========================
 // Navigation
+// ==========================
 document.querySelectorAll('nav a').forEach(link => {
     link.addEventListener('click', (e) => {
         e.preventDefault();
-
-        // Remove active class from all links and sections
         document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
         document.querySelectorAll('.section').forEach(section => section.classList.remove('active'));
-
-        // Add active class to clicked link
         link.classList.add('active');
-
-        // Show corresponding section
         const sectionId = link.getAttribute('data-section');
         document.getElementById(sectionId).classList.add('active');
     });
 });
 
+// ==========================
 // API Base URL
+// ==========================
 const API_BASE = 'http://localhost:5000/api';
 
-// Upload student files
-async function uploadStudentFiles() {
-    const files = document.getElementById('student-files').files;
-    const statusDiv = document.getElementById('student-upload-status');
+// ==========================
+// File Upload & Listing
+// ==========================
+async function uploadFiles(inputId, statusId, endpoint, listDivId) {
+    const files = document.getElementById(inputId).files;
+    const statusDiv = document.getElementById(statusId);
+    const listDiv = document.getElementById(listDivId);
 
-    if (files.length === 0) {
+    if (!files || files.length === 0) {
         showStatus(statusDiv, 'Please select at least one file', 'error');
         return;
     }
 
-    const formData = new FormData();
-    for (let i = 0; i < files.length; i++) {
-        formData.append('file', files[i]);
+    // Hall file restriction to .xlsx
+    if (endpoint === 'halls') {
+        for (const file of files) {
+            if (!file.name.toLowerCase().endsWith('.xlsx')) {
+                showStatus(statusDiv, 'Only Excel (.xlsx) files are allowed for halls', 'error');
+                return;
+            }
+        }
     }
 
+    const formData = new FormData();
+    Array.from(files).forEach(file => formData.append('file', file));
+
     try {
-        showStatus(statusDiv, 'Uploading files...', 'info');
+        showStatus(statusDiv, 'Uploading file(s)...', 'info');
 
-        const response = await fetch(`${API_BASE}/upload/students`, {
-            method: 'POST',
-            body: formData
-        });
-
+        const response = await fetch(`${API_BASE}/upload/${endpoint}`, { method: 'POST', body: formData });
         const data = await response.json();
 
         if (response.ok) {
-            showStatus(statusDiv, 'Files uploaded successfully!', 'success');
-            updateDashboardStats();
+            showStatus(statusDiv, 'Upload successful!', 'success');
+            fetchUploadedFiles(endpoint, listDivId); // Refresh file list
+            updateDashboardStats(); // Refresh dashboard immediately
         } else {
             showStatus(statusDiv, `Error: ${data.error}`, 'error');
         }
@@ -55,98 +61,68 @@ async function uploadStudentFiles() {
     }
 }
 
-// Upload hall file
-async function uploadHallFile() {
-    const file = document.getElementById('hall-file').files[0];
-    const statusDiv = document.getElementById('hall-upload-status');
+// Upload functions
+function uploadStudentFiles() { return uploadFiles('student-files', 'student-upload-status', 'students', 'student-file-list'); }
 
-    if (!file) {
-        showStatus(statusDiv, 'Please select a file', 'error');
-        return;
-    }
+function uploadHallFile() { return uploadFiles('hall-file', 'hall-upload-status', 'halls', 'hall-file-list'); }
 
-    const formData = new FormData();
-    formData.append('file', file);
+function uploadScheduleFile() { return uploadFiles('schedule-file', 'schedule-upload-status', 'schedule', 'schedule-file-list'); }
+
+// Fetch and display uploaded files
+async function fetchUploadedFiles(endpoint, listDivId) {
+    const listDiv = document.getElementById(listDivId);
+    listDiv.innerHTML = '<p>Loading files...</p>';
 
     try {
-        showStatus(statusDiv, 'Uploading file...', 'info');
+        const res = await fetch(`${API_BASE}/list-${endpoint}`);
+        const data = await res.json();
 
-        const response = await fetch(`${API_BASE}/upload/halls`, {
-            method: 'POST',
-            body: formData
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-            showStatus(statusDiv, 'File uploaded successfully!', 'success');
-            updateDashboardStats();
+        if (res.ok && Array.isArray(data.files)) {
+            listDiv.innerHTML = '';
+            if (data.files.length === 0) {
+                listDiv.innerHTML = '<p>No files uploaded yet.</p>';
+                return;
+            }
+            data.files.forEach(file => {
+                const p = document.createElement('p');
+                p.textContent = file;
+                listDiv.appendChild(p);
+            });
         } else {
-            showStatus(statusDiv, `Error: ${data.error}`, 'error');
+            listDiv.innerHTML = `<p>Error fetching files</p>`;
         }
     } catch (error) {
-        showStatus(statusDiv, `Error: ${error.message}`, 'error');
+        listDiv.innerHTML = `<p>Error: ${error.message}</p>`;
     }
 }
 
-// Upload schedule file
-async function uploadScheduleFile() {
-    const file = document.getElementById('schedule-file').files[0];
-    const statusDiv = document.getElementById('schedule-upload-status');
+// Initialize file lists on page load
+['students', 'halls', 'schedule'].forEach(endpoint => {
+    const listDivId = endpoint === 'students' ? 'student-file-list' :
+        endpoint === 'halls' ? 'hall-file-list' : 'schedule-file-list';
+    fetchUploadedFiles(endpoint, listDivId);
+});
 
-    if (!file) {
-        showStatus(statusDiv, 'Please select a file', 'error');
-        return;
-    }
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-        showStatus(statusDiv, 'Uploading file...', 'info');
-
-        const response = await fetch(`${API_BASE}/upload/schedule`, {
-            method: 'POST',
-            body: formData
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-            showStatus(statusDiv, 'File uploaded successfully!', 'success');
-            updateDashboardStats();
-        } else {
-            showStatus(statusDiv, `Error: ${data.error}`, 'error');
-        }
-    } catch (error) {
-        showStatus(statusDiv, `Error: ${error.message}`, 'error');
-    }
-}
-
-// Generate seating arrangement
+// ==========================
+// Generate Seating Arrangement
+// ==========================
 async function generateSeating() {
     const examType = document.getElementById('exam-type').value;
     const sessionType = document.getElementById('session-type').value;
     const resultDiv = document.getElementById('seating-result');
-
-    // In a real implementation, we would get the uploaded file paths from the server
-    // For this demo, we'll use placeholder data
-    const studentFiles = ['frontend/uploads/students_sample.xlsx'];
-    const hallFile = 'frontend/uploads/halls_sample.pdf';
-    const scheduleFile = 'frontend/uploads/schedule_sample.docx';
+    resultDiv.innerHTML = '';
 
     try {
         showStatus(resultDiv, 'Generating seating arrangement...', 'info');
 
+        // Backend will pick latest uploaded files automatically
         const response = await fetch(`${API_BASE}/generate-seating`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                student_files: studentFiles,
-                hall_file: hallFile,
-                schedule_file: scheduleFile,
+                student_files: [],
+                hall_file: "",
+                schedule_file: "",
                 exam_type: examType,
                 session_type: sessionType
             })
@@ -156,11 +132,8 @@ async function generateSeating() {
 
         if (response.ok) {
             showStatus(resultDiv, 'Seating arrangement generated successfully!', 'success');
-
-            // Display the result in a table
             displaySeatingResult(data.data);
 
-            // Add download button
             const downloadBtn = document.createElement('button');
             downloadBtn.textContent = 'Download Seating Arrangement';
             downloadBtn.onclick = () => downloadFile(data.file);
@@ -173,96 +146,108 @@ async function generateSeating() {
     }
 }
 
-// Display seating result in a table
+// ==========================
+// Display Seating Table
+// ==========================
 function displaySeatingResult(data) {
     const resultDiv = document.getElementById('seating-result');
     const table = document.createElement('table');
-
-    // Create table header
-    const thead = document.createElement('thead');
-    const headerRow = document.createElement('tr');
+    table.className = 'seating-table';
 
     if (data.length > 0) {
+        const thead = document.createElement('thead');
+        const headerRow = document.createElement('tr');
         Object.keys(data[0]).forEach(key => {
             const th = document.createElement('th');
             th.textContent = key.replace(/_/g, ' ').toUpperCase();
             headerRow.appendChild(th);
         });
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
+
+        const tbody = document.createElement('tbody');
+        data.forEach(item => {
+            const row = document.createElement('tr');
+            Object.values(item).forEach(value => {
+                const td = document.createElement('td');
+                td.textContent = value;
+                row.appendChild(td);
+            });
+            tbody.appendChild(row);
+        });
+        table.appendChild(tbody);
+    } else {
+        resultDiv.appendChild(document.createElement('p')).textContent = 'No seating data available.';
     }
 
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
-
-    // Create table body
-    const tbody = document.createElement('tbody');
-
-    data.forEach(item => {
-        const row = document.createElement('tr');
-
-        Object.values(item).forEach(value => {
-            const td = document.createElement('td');
-            td.textContent = value;
-            row.appendChild(td);
-        });
-
-        tbody.appendChild(row);
-    });
-
-    table.appendChild(tbody);
     resultDiv.appendChild(table);
 }
 
-// Generate attendance sheets
-async function generateAttendanceSheets() {
-    const resultDiv = document.getElementById('report-result');
-    showStatus(resultDiv, 'This feature will be implemented in the next version', 'info');
-}
-
-// Generate seating report
-async function generateSeatingReport() {
-    const resultDiv = document.getElementById('report-result');
-    showStatus(resultDiv, 'This feature will be implemented in the next version', 'info');
-}
-
-// Generate department report
-async function generateDepartmentReport() {
-    const resultDiv = document.getElementById('report-result');
-    showStatus(resultDiv, 'This feature will be implemented in the next version', 'info');
-}
-
-// Download file
+// ==========================
+// Download File
+// ==========================
 async function downloadFile(filename) {
     try {
         const response = await fetch(`${API_BASE}/download/${filename}`);
+        if (!response.ok) throw new Error('Failed to download file');
 
-        if (response.ok) {
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-        } else {
-            alert('Error downloading file');
-        }
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     } catch (error) {
-        alert(`Error: ${error.message}`);
+        alert(`Error downloading file: ${error.message}`);
     }
 }
 
-// Update dashboard statistics
+// ==========================
+// Update Dashboard Stats
+// ==========================
 async function updateDashboardStats() {
-    // In a real implementation, we would fetch these counts from the server
-    // For this demo, we'll use placeholder values
-    document.getElementById('student-count').textContent = '1250';
-    document.getElementById('hall-count').textContent = '45';
-    document.getElementById('exam-count').textContent = '18';
+    try {
+        // Get slot report for student counts
+        const slotRes = await fetch(`${API_BASE}/slot-report`);
+        let slotData = [];
+        if (slotRes.ok) {
+            const slotJson = await slotRes.json();
+            slotData = slotJson.data || [];
+        }
+        const studentCount = slotData.reduce((acc, row) => acc + (row.count || 0), 0);
+
+        // Get uploaded halls and schedule counts
+        const hallCount = await getUploadedCount('halls');
+        const examCount = await getUploadedCount('schedule');
+
+        // Update dashboard UI
+        document.getElementById('student-count').textContent = studentCount;
+        document.getElementById('hall-count').textContent = hallCount;
+        document.getElementById('exam-count').textContent = examCount;
+
+    } catch (err) {
+        console.error('Error updating dashboard stats:', err);
+    }
 }
 
-// Show status message
+// Helper to get number of uploaded files
+async function getUploadedCount(type) {
+    try {
+        const res = await fetch(`${API_BASE}/list-${type}`);
+        if (!res.ok) return 0;
+        const data = await res.json();
+        return (data.files && data.files.length) || 0;
+    } catch {
+        return 0;
+    }
+}
+
+// ==========================
+// Status Message Helper
+// ==========================
 function showStatus(element, message, type) {
     element.innerHTML = '';
     const statusDiv = document.createElement('div');
@@ -271,5 +256,7 @@ function showStatus(element, message, type) {
     element.appendChild(statusDiv);
 }
 
-// Initialize dashboard
+// ==========================
+// Initialize Dashboard
+// ==========================
 updateDashboardStats();

@@ -11,7 +11,7 @@ def process_student_data(file_path):
     df.columns = df.columns.str.strip().str.lower().str.replace(' ', '_')
     
     # Ensure required columns exist
-    required_columns = ['name', 'reg_no', 'department', 'section', 'academic_year']
+    required_columns = ['Reg No.', 'Student Name', 'department', 'section', 'academic_year']
     for col in required_columns:
         if col not in df.columns:
             raise ValueError(f"Missing required column: {col}")
