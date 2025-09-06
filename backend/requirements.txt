@@ -1,1 +1,6 @@
-# requirements.txt placeholder
+flask
+flask-cors
+pandas
+openpyxl
+python-docx
+PyPDF2

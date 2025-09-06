@@ -1,6 +1,5 @@
 import pandas as pd
 from docx import Document
-import PyPDF2
 import re
 from config import DEPARTMENT_ALIASES, ACADEMIC_YEARS, DEPT_SLOT_MAPPING
 
@@ -32,71 +31,29 @@ def process_student_data(file_path):
     
     return df.to_dict('records')
 
+
 def process_hall_data(file_path):
-    """Process hall configuration from PDF or DOCX files"""
-    if file_path.endswith('.pdf'):
-        return process_pdf_hall_data(file_path)
-    elif file_path.endswith('.docx'):
-        return process_docx_hall_data(file_path)
+    """Process hall configuration from XLSX files"""
+    if file_path.endswith('.xlsx'):
+        return process_xlsx_hall_data(file_path)
     else:
         raise ValueError("Unsupported file format for hall data")
 
-def process_pdf_hall_data(file_path):
-    """Extract hall data from PDF files"""
-    halls = []
-    
-    with open(file_path, 'rb') as file:
-        reader = PyPDF2.PdfReader(file)
-        
-        for page in reader.pages:
-            text = page.extract_text()
-            lines = text.split('\n')
-            
-            for line in lines:
-                # Look for hall number and capacity patterns
-                # Handle different patterns like "107 20", "107/20", "107:20", etc.
-                patterns = [
-                    r'(\w+[/-]?\d*)\s+(\d+)',  # Matches "107 20", "A-101 30"
-                    r'(\w+)[:/](\d+)',         # Matches "107:20", "A101:30"
-                    r'Room\s+(\w+).*?(\d+)'    # Matches "Room 107 capacity 20"
-                ]
-                
-                for pattern in patterns:
-                    hall_match = re.search(pattern, line)
-                    if hall_match:
-                        hall_no = hall_match.group(1).strip()
-                        try:
-                            capacity = int(hall_match.group(2))
-                            halls.append({'hall_no': hall_no, 'capacity': capacity})
-                            break
-                        except ValueError:
-                            continue
-    
-    return halls
 
-def process_docx_hall_data(file_path):
-    """Extract hall data from DOCX files"""
-    halls = []
-    doc = Document(file_path)
-    
-    for table in doc.tables:
-        for row in table.rows:
-            cells = [cell.text.strip() for cell in row.cells]
-            if len(cells) >= 2:
-                # Try to extract hall number and capacity
-                hall_no = cells[0]
-                capacity_str = cells[1]
-                
-                # Check if capacity is a number
-                if capacity_str.isdigit():
-                    halls.append({'hall_no': hall_no, 'capacity': int(capacity_str)})
-                else:
-                    # Try to extract numbers from the string
-                    numbers = re.findall(r'\d+', capacity_str)
-                    if numbers:
-                        halls.append({'hall_no': hall_no, 'capacity': int(numbers[0])})
-    
-    return halls
+def process_xlsx_hall_data(file_path):
+    """Read hall data from Excel and return list of dicts"""
+    try:
+        df = pd.read_excel(file_path)
+        # Expecting columns: 'hall_no', 'capacity'
+        df.columns = df.columns.str.strip().str.lower().str.replace(' ', '_')
+        if 'hall_no' not in df.columns or 'capacity' not in df.columns:
+            raise ValueError("Excel must have 'hall_no' and 'capacity' columns")
+        df['capacity'] = df['capacity'].astype(int)
+        halls = df.to_dict(orient='records')
+        return halls
+    except Exception as e:
+        raise ValueError(f"Error reading hall Excel file: {e}")
+
 
 def process_schedule_data(file_path):
     """Process exam schedule from DOCX files"""
@@ -142,6 +99,7 @@ def process_schedule_data(file_path):
     
     return schedule
 
+
 def standardize_department(dept_name):
     """Standardize department names using the aliases"""
     if not isinstance(dept_name, str):
@@ -184,6 +142,7 @@ def standardize_department(dept_name):
     
     return dept_name
 
+
 def standardize_academic_year(year):
     """Standardize academic year format"""
     if not isinstance(year, str):
@@ -205,14 +164,9 @@ def standardize_academic_year(year):
     
     return year
 
+
 def extract_departments(dept_string):
-    """
-    Extract department names from schedule strings
-    Example: "II YEAR(AGRI,EEE,ECE,MECH)" -> ["AGRI", "EEE", "ECE", "MECH"]
-    """
-    import re
-    
-    # Find text inside parentheses
+    """Extract department names from schedule strings"""
     match = re.search(r'\((.*?)\)', dept_string)
     if match:
         departments = match.group(1).split(',')
@@ -230,12 +184,14 @@ def extract_departments(dept_string):
     
     return departments
 
+
 def get_slot_by_department(department):
     """Get the slot assigned to a specific department"""
     for slot, depts in DEPT_SLOT_MAPPING.items():
         if department in depts:
             return slot
     return None
+
 
 def validate_departments(departments):
     """Validate that all departments are assigned to slots"""

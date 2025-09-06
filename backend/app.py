@@ -57,8 +57,9 @@ def upload_halls():
     if file.filename == '':
         return jsonify({'error': 'No file selected'}), 400
 
-    if file and allowed_file(file.filename, {'pdf', 'docx'}):
-        filename = f"halls_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.{file.filename.split('.')[-1]}"
+    # Changed allowed type to xlsx
+    if file and allowed_file(file.filename, {'xlsx'}):
+        filename = f"halls_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
 
@@ -68,7 +69,7 @@ def upload_halls():
         except Exception as e:
             return jsonify({'error': f'Error processing file: {str(e)}'}), 500
 
-    return jsonify({'error': 'Invalid file type'}), 400
+    return jsonify({'error': 'Invalid file type. Please upload an Excel (.xlsx) file'}), 400
 
 
 @app.route('/api/upload/schedule', methods=['POST'])
@@ -95,9 +96,29 @@ def upload_schedule():
 
 
 # -----------------------------
+# List Uploaded Files APIs
+# -----------------------------
+@app.route('/api/list-students', methods=['GET'])
+def list_students():
+    files = [f for f in os.listdir(app.config['UPLOAD_FOLDER']) if f.startswith('students_')]
+    return jsonify({'files': files})
+
+
+@app.route('/api/list-halls', methods=['GET'])
+def list_halls():
+    files = [f for f in os.listdir(app.config['UPLOAD_FOLDER']) if f.startswith('halls_')]
+    return jsonify({'files': files})
+
+
+@app.route('/api/list-schedule', methods=['GET'])
+def list_schedule():
+    files = [f for f in os.listdir(app.config['UPLOAD_FOLDER']) if f.startswith('schedule_')]
+    return jsonify({'files': files})
+
+
+# -----------------------------
 # Seating Arrangement
 # -----------------------------
-
 @app.route('/api/generate-seating', methods=['POST'])
 def generate_seating():
     data = request.json
@@ -107,6 +128,34 @@ def generate_seating():
     exam_type = data.get('exam_type', 'Internal')
 
     try:
+        # Use latest uploaded files if none provided
+        if not student_files:
+            student_files = sorted(
+                [os.path.join(app.config['UPLOAD_FOLDER'], f)
+                 for f in os.listdir(app.config['UPLOAD_FOLDER']) if f.startswith('students_')],
+                key=os.path.getmtime,
+                reverse=True
+            )
+        if not hall_file:
+            halls = sorted(
+                [os.path.join(app.config['UPLOAD_FOLDER'], f)
+                 for f in os.listdir(app.config['UPLOAD_FOLDER']) if f.startswith('halls_')],
+                key=os.path.getmtime,
+                reverse=True
+            )
+            hall_file = halls[0] if halls else None
+        if not schedule_file:
+            schedules = sorted(
+                [os.path.join(app.config['UPLOAD_FOLDER'], f)
+                 for f in os.listdir(app.config['UPLOAD_FOLDER']) if f.startswith('schedule_')],
+                key=os.path.getmtime,
+                reverse=True
+            )
+            schedule_file = schedules[0] if schedules else None
+
+        if not student_files or not hall_file or not schedule_file:
+            return jsonify({'error': 'Required files are missing'}), 400
+
         all_students = []
         for file_path in student_files:
             students = process_student_data(file_path)
@@ -131,14 +180,11 @@ def generate_seating():
     except Exception as e:
         return jsonify({'error': f'Error generating seating arrangement: {str(e)}'}), 500
 
-
 # -----------------------------
 # Reports & Validation
 # -----------------------------
-
 @app.route('/api/slot-report', methods=['GET'])
 def get_slot_report():
-    """Generate a report showing student counts by slot and department"""
     try:
         student_files = [f for f in os.listdir(app.config['UPLOAD_FOLDER']) if f.startswith('students_')]
         if not student_files:
@@ -164,7 +210,6 @@ def get_slot_report():
 
 @app.route('/api/validate-assignments', methods=['GET'])
 def validate_assignments():
-    """Validate that all students are assigned to correct slots based on their department"""
     try:
         student_files = [f for f in os.listdir(app.config['UPLOAD_FOLDER']) if f.startswith('students_')]
         if not student_files:
@@ -192,7 +237,6 @@ def validate_assignments():
 # -----------------------------
 # File Download
 # -----------------------------
-
 @app.route('/api/download/<filename>', methods=['GET'])
 def download_file(filename):
     try:
@@ -204,7 +248,6 @@ def download_file(filename):
 # -----------------------------
 # Helper
 # -----------------------------
-
 def allowed_file(filename, allowed_extensions):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
@@ -212,7 +255,6 @@ def allowed_file(filename, allowed_extensions):
 # -----------------------------
 # Main
 # -----------------------------
-
 if __name__ == '__main__':
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
     os.makedirs(OUTPUT_FOLDER, exist_ok=True)
