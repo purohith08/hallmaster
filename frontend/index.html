@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HallMaster - Examination Seating Arrangement System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>HallMaster</h1>
+            <p>Examination Seating Arrangement System</p>
+        </header>
+
+        <nav>
+            <ul>
+                <li><a href="#" class="active" data-section="dashboard">Dashboard</a></li>
+                <li><a href="#" data-section="upload">Upload Data</a></li>
+                <li><a href="#" data-section="seating">Seating Arrangement</a></li>
+                <li><a href="#" data-section="reports">Reports</a></li>
+            </ul>
+        </nav>
+
+        <main>
+            <!-- Dashboard Section -->
+            <section id="dashboard" class="section active">
+                <h2>Dashboard</h2>
+                <div class="stats">
+                    <div class="stat-card">
+                        <h3>Students</h3>
+                        <p id="student-count">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Halls</h3>
+                        <p id="hall-count">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Exams</h3>
+                        <p id="exam-count">0</p>
+                    </div>
+                </div>
+
+                <div class="recent-arrangements">
+                    <h3>Recent Seating Arrangements</h3>
+                    <table id="arrangements-table">
+                        <thead>
+                            <tr>
+                                <th>Arrangement ID</th>
+                                <th>Exam</th>
+                                <th>Date</th>
+                                <th>Halls Used</th>
+                                <th>Students</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Upload Data Section -->
+            <section id="upload" class="section">
+                <h2>Upload Data</h2>
+
+                <div class="upload-section">
+                    <h3>Student Data</h3>
+                    <p>Upload XLSX files with student information (Name, Reg No, Department, Section, Academic Year)</p>
+                    <input type="file" id="student-files" accept=".xlsx" multiple>
+                    <button onclick="uploadStudentFiles()">Upload Student Data</button>
+                    <div id="student-upload-status"></div>
+                </div>
+
+                <div class="upload-section">
+                    <h3>Hall Configuration</h3>
+                    <p>Upload PDF or DOCX files with hall numbers and capacities</p>
+                    <input type="file" id="hall-file" accept=".pdf,.docx">
+                    <button onclick="uploadHallFile()">Upload Hall Configuration</button>
+                    <div id="hall-upload-status"></div>
+                </div>
+
+                <div class="upload-section">
+                    <h3>Exam Schedule</h3>
+                    <p>Upload DOCX file with exam schedule (Course Code, Course Name, Date, Department)</p>
+                    <input type="file" id="schedule-file" accept=".docx">
+                    <button onclick="uploadScheduleFile()">Upload Exam Schedule</button>
+                    <div id="schedule-upload-status"></div>
+                </div>
+            </section>
+
+            <!-- Seating Arrangement Section -->
+            <section id="seating" class="section">
+                <h2>AI Seating Assistant</h2>
+
+                <div class="seating-controls">
+                    <div>
+                        <label for="exam-type">Exam Type:</label>
+                        <select id="exam-type">
+                            <option value="Internal">Internal</option>
+                            <option value="University">University</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="session-type">Session:</label>
+                        <select id="session-type">
+                            <option value="FN">Forenoon (FN)</option>
+                            <option value="AN">Afternoon (AN)</option>
+                        </select>
+                    </div>
+
+                    <button onclick="generateSeating()">Generate Arrangement</button>
+                </div>
+
+                <div id="seating-result"></div>
+            </section>
+
+            <!-- Reports Section -->
+            <section id="reports" class="section">
+                <h2>Reports</h2>
+
+                <div class="report-options">
+                    <button onclick="generateAttendanceSheets()">Generate Attendance Sheets</button>
+                    <button onclick="generateSeatingReport()">Generate Seating Report</button>
+                    <button onclick="generateDepartmentReport()">Generate Department Report</button>
+                </div>
+
+                <div id="report-result"></div>
+            </section>
+        </main>
+    </div>
+
+    <script src="js/script.js"></script>
+</body>
+
+</html>

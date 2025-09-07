@@ -1,0 +1,10 @@
+flask
+flask-cors
+pandas
+openpyxl
+python-docx
+PyPDF2
+psycopg2-binary
+SQLAlchemy
+Flask-SQLAlchemy
+python-dotenv
