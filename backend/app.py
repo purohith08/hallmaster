@@ -24,7 +24,6 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB limit
 # -----------------------------
 # File Upload APIs
 # -----------------------------
-
 @app.route('/api/upload/students', methods=['POST'])
 def upload_students():
     if 'file' not in request.files:
@@ -41,7 +40,14 @@ def upload_students():
 
         try:
             student_data = process_student_data(filepath)
-            return jsonify({'message': 'File uploaded successfully', 'data': student_data})
+
+            # ✅ Standardize keys for consistency
+            standardized = []
+            for s in student_data:
+                new_s = {k.strip().lower().replace(" ", "_"): v for k, v in s.items()}
+                standardized.append(new_s)
+
+            return jsonify({'message': 'File uploaded successfully', 'data': standardized})
         except Exception as e:
             return jsonify({'error': f'Error processing file: {str(e)}'}), 500
 
@@ -57,7 +63,6 @@ def upload_halls():
     if file.filename == '':
         return jsonify({'error': 'No file selected'}), 400
 
-    # Changed allowed type to xlsx
     if file and allowed_file(file.filename, {'xlsx'}):
         filename = f"halls_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -126,6 +131,7 @@ def generate_seating():
     hall_file = data.get('hall_file')
     schedule_file = data.get('schedule_file')
     exam_type = data.get('exam_type', 'Internal')
+    session_type = data.get('session_type', 'FN')  # ✅ Added for new algorithm
 
     try:
         # Use latest uploaded files if none provided
@@ -159,12 +165,16 @@ def generate_seating():
         all_students = []
         for file_path in student_files:
             students = process_student_data(file_path)
-            all_students.extend(students)
+
+            # ✅ Standardize keys
+            for s in students:
+                standardized = {k.strip().lower().replace(" ", "_"): v for k, v in s.items()}
+                all_students.append(standardized)
 
         halls = process_hall_data(hall_file)
         schedule = process_schedule_data(schedule_file)
 
-        result = generate_seating_arrangement(all_students, halls, schedule, exam_type)
+        result = generate_seating_arrangement(all_students, halls, schedule, exam_type, session_type)
 
         output_file = os.path.join(
             OUTPUT_FOLDER,
@@ -180,6 +190,7 @@ def generate_seating():
     except Exception as e:
         return jsonify({'error': f'Error generating seating arrangement: {str(e)}'}), 500
 
+
 # -----------------------------
 # Reports & Validation
 # -----------------------------
@@ -194,7 +205,11 @@ def get_slot_report():
         for filename in student_files:
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             students = process_student_data(filepath)
-            all_students.extend(students)
+
+            # ✅ Standardize keys
+            for s in students:
+                standardized = {k.strip().lower().replace(" ", "_"): v for k, v in s.items()}
+                all_students.append(standardized)
 
         students_df = pd.DataFrame(all_students)
         report = generate_slot_report(students_df)
@@ -219,7 +234,11 @@ def validate_assignments():
         for filename in student_files:
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             students = process_student_data(filepath)
-            all_students.extend(students)
+
+            # ✅ Standardize keys
+            for s in students:
+                standardized = {k.strip().lower().replace(" ", "_"): v for k, v in s.items()}
+                all_students.append(standardized)
 
         students_df = pd.DataFrame(all_students)
         invalid_assignments = validate_student_slot_assignment(students_df)

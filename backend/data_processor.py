@@ -3,34 +3,41 @@ from docx import Document
 import re
 from config import DEPARTMENT_ALIASES, ACADEMIC_YEARS, DEPT_SLOT_MAPPING
 
-def process_student_data(file_path):
-    """Process student data from XLSX files"""
-    df = pd.read_excel(file_path)
-    
-    # Standardize column names
-    df.columns = df.columns.str.strip().str.lower().str.replace(' ', '_')
-    
-    # Ensure required columns exist
-    required_columns = ['Reg No.', 'Student Name', 'department', 'section', 'academic_year']
+def process_student_data(filepath):
+    df = pd.read_excel(filepath)
+
+    # Normalize column names (strip spaces, lowercase, underscores)
+    df.columns = [col.strip().lower().replace(" ", "_") for col in df.columns]
+
+    # Map possible variations to standard names
+    rename_map = {
+        "reg no": "reg_no",
+        "register_number": "reg_no",
+        "rollno": "reg_no",
+        "roll_no": "reg_no",
+        "roll number": "reg_no",
+
+        "department": "department",
+        "dept": "department",
+
+        "semester": "semester",
+        "sem": "semester",
+
+        "section": "section",
+
+        "year": "academic_year",
+        "academic_year": "academic_year",
+        "academic year": "academic_year"
+    }
+    df.rename(columns=rename_map, inplace=True)
+
+    # Required columns (no name, Semester included)
+    required_columns = ["reg_no", "department", "semester", "section", "academic_year"]
     for col in required_columns:
         if col not in df.columns:
-            raise ValueError(f"Missing required column: {col}")
-    
-    # Standardize department names
-    if 'department' in df.columns:
-        df['department'] = df['department'].apply(standardize_department)
-    
-    # Standardize academic years
-    if 'academic_year' in df.columns:
-        df['academic_year'] = df['academic_year'].apply(standardize_academic_year)
-    
-    # Validate that all departments are assigned to slots
-    invalid_departments = validate_departments(df['department'].unique())
-    if invalid_departments:
-        print(f"Warning: The following departments are not assigned to any slot: {', '.join(invalid_departments)}")
-    
-    return df.to_dict('records')
+            raise ValueError(f"Excel must have {required_columns} columns")
 
+    return df.to_dict(orient="records")
 
 def process_hall_data(file_path):
     """Process hall configuration from XLSX files"""
@@ -38,7 +45,6 @@ def process_hall_data(file_path):
         return process_xlsx_hall_data(file_path)
     else:
         raise ValueError("Unsupported file format for hall data")
-
 
 def process_xlsx_hall_data(file_path):
     """Read hall data from Excel and return list of dicts"""
@@ -53,7 +59,6 @@ def process_xlsx_hall_data(file_path):
         return halls
     except Exception as e:
         raise ValueError(f"Error reading hall Excel file: {e}")
-
 
 def process_schedule_data(file_path):
     """Process exam schedule from DOCX files"""
@@ -80,7 +85,6 @@ def process_schedule_data(file_path):
                     if dept_info:
                         departments = extract_departments(dept_info)
                         if departments:
-                            # Assign slot based on the first department found
                             slot = get_slot_by_department(departments[0])
                             if slot:
                                 exam_data['slot'] = slot
@@ -99,7 +103,6 @@ def process_schedule_data(file_path):
     
     return schedule
 
-
 def standardize_department(dept_name):
     """Standardize department names using the aliases"""
     if not isinstance(dept_name, str):
@@ -107,7 +110,6 @@ def standardize_department(dept_name):
     
     dept_name_upper = dept_name.upper().strip()
     
-    # Handle common variations
     if 'COMPUTER' in dept_name_upper and 'SCIENCE' in dept_name_upper:
         return 'CSE'
     if 'INFORMATION' in dept_name_upper and 'TECHNOLOGY' in dept_name_upper:
@@ -134,14 +136,12 @@ def standardize_department(dept_name):
     if 'AGRICULTURAL' in dept_name_upper or 'AGRI' in dept_name_upper:
         return 'AGRI'
     
-    # Check against aliases
     for dept, aliases in DEPARTMENT_ALIASES.items():
         for alias in aliases:
             if alias.upper() in dept_name_upper:
                 return dept
     
     return dept_name
-
 
 def standardize_academic_year(year):
     """Standardize academic year format"""
@@ -150,7 +150,6 @@ def standardize_academic_year(year):
     
     year = year.upper().strip()
     
-    # Map variations to standard years
     year_mapping = {
         'I': ['1', 'I', 'FIRST', '1ST', 'IYEAR', 'I YEAR'],
         'II': ['2', 'II', 'SECOND', '2ND', 'IIYEAR', 'II YEAR'],
@@ -164,7 +163,6 @@ def standardize_academic_year(year):
     
     return year
 
-
 def extract_departments(dept_string):
     """Extract department names from schedule strings"""
     match = re.search(r'\((.*?)\)', dept_string)
@@ -172,7 +170,6 @@ def extract_departments(dept_string):
         departments = match.group(1).split(',')
         return [standardize_department(dept.strip()) for dept in departments]
     
-    # If no parentheses, try to extract departments from the string
     departments = []
     dept_string_upper = dept_string.upper()
     
@@ -184,14 +181,12 @@ def extract_departments(dept_string):
     
     return departments
 
-
 def get_slot_by_department(department):
     """Get the slot assigned to a specific department"""
     for slot, depts in DEPT_SLOT_MAPPING.items():
         if department in depts:
             return slot
     return None
-
 
 def validate_departments(departments):
     """Validate that all departments are assigned to slots"""

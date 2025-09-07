@@ -9,6 +9,10 @@ def generate_seating_arrangement(students, halls, schedule, exam_type, session_t
     """
     # Convert to DataFrames for easier manipulation
     students_df = pd.DataFrame(students)
+
+    # ✅ Standardize column names (accept both "Reg No" and "reg_no")
+    students_df.rename(columns=lambda x: x.strip().lower().replace(" ", "_"), inplace=True)
+
     halls_df = pd.DataFrame(halls)
     schedule_df = pd.DataFrame(schedule)
     
@@ -86,8 +90,8 @@ def generate_seating_arrangement(students, halls, schedule, exam_type, session_t
                         arrangements.append({
                             'hall_no': hall_no,
                             'seat_no': seat_no,
-                            'reg_no': student['reg_no'],
-                            'name': student['name'],
+                            'reg_no': student['reg_no'],   # ✅ fixed
+                            'Name': student['Name'],
                             'department': student['department'],
                             'year': student['academic_year'],
                             'course_code': course_code,
@@ -101,9 +105,11 @@ def generate_seating_arrangement(students, halls, schedule, exam_type, session_t
     
     return pd.DataFrame(arrangements)
 
+
 def get_departments_by_slot(slot):
     """Get departments assigned to a specific slot"""
     return DEPT_SLOT_MAPPING.get(slot, [])
+
 
 def get_slot_by_department(department):
     """Get the slot assigned to a specific department"""
@@ -111,6 +117,7 @@ def get_slot_by_department(department):
         if department in depts:
             return slot
     return None
+
 
 def extract_departments(dept_string):
     """
@@ -136,6 +143,7 @@ def extract_departments(dept_string):
                 break
     
     return departments
+
 
 def calculate_department_stats(students_df, schedule_df):
     """
@@ -169,6 +177,7 @@ def calculate_department_stats(students_df, schedule_df):
     
     return stats
 
+
 def generate_slot_report(students_df):
     """
     Generate a report showing student counts by slot and department
@@ -195,11 +204,15 @@ def generate_slot_report(students_df):
     
     return pivot_table
 
+
 def validate_student_slot_assignment(students_df):
     """
     Validate that all students are assigned to the correct slot based on their department
     """
     invalid_assignments = []
+    
+    # ✅ Standardize column names here too
+    students_df.rename(columns=lambda x: x.strip().lower().replace(" ", "_"), inplace=True)
     
     for _, student in students_df.iterrows():
         department = student['department']
@@ -207,7 +220,7 @@ def validate_student_slot_assignment(students_df):
         
         if assigned_slot is None:
             invalid_assignments.append({
-                'reg_no': student['reg_no'],
+                'reg_no': student['reg_no'],   # ✅ fixed
                 'name': student['name'],
                 'department': department,
                 'error': 'Department not assigned to any slot'
