@@ -1,28 +1,45 @@
 import os
 
-# Existing config kept without changes
+# -----------------------------
+# Base Paths
+# -----------------------------
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 UPLOAD_FOLDER = os.path.join(BASE_DIR, '..', 'frontend', 'uploads')
+OUTPUT_FOLDER = os.path.join(BASE_DIR, '..', 'outputs')
+
+# -----------------------------
+# File Types
+# -----------------------------
 ALLOWED_EXTENSIONS = {
     'students': {'xlsx'},
     'halls': {'pdf', 'docx'},
     'schedules': {'docx'}
 }
-OUTPUT_FOLDER = os.path.join(BASE_DIR, '..', 'outputs')
+
+# -----------------------------
+# Exam Slots and Sessions
+# -----------------------------
 EXAM_SLOTS = {
     'I': {'start': '09:30', 'end': '11:00'},
     'II': {'start': '12:00', 'end': '13:30'},
     'III': {'start': '14:30', 'end': '16:00'}
 }
+
 SESSIONS = {
-    'FN': ['I', 'II'],  # Forenoon sessions
-    'AN': ['III']       # Afternoon session
+    'FN': ['I', 'II'],  
+    'AN': ['III']       
 }
+
 DEPT_SLOT_MAPPING = {
     'I': ['CSE', 'IOT', 'IT'],
     'II': ['AIDS'],
     'III': ['AGRI', 'BME', 'BT', 'ECE', 'EEE', 'MECH', 'AIML', 'CYS']
 }
+
+
+# -----------------------------
+# Department Aliases
+# -----------------------------
 DEPARTMENT_ALIASES = {
     'AGRI': ['AGRICULTURE', 'AGRI', 'AGRICULTURAL'],
     'CSE': ['CSE', 'COMPUTER SCIENCE', 'COMPUTER SCIENCE ENGINEERING'],
@@ -37,10 +54,15 @@ DEPARTMENT_ALIASES = {
     'BME': ['BME', 'BIOMEDICAL'],
     'BT': ['BT', 'BIOTECHNOLOGY']
 }
+
+# -----------------------------
+# Academic Years
+# -----------------------------
 ACADEMIC_YEARS = ['I', 'II', 'III', 'IV']
 
-# === Add PostgreSQL Configuration ===
-
+# -----------------------------
+# PostgreSQL Configuration
+# -----------------------------
 POSTGRES_USER = os.environ.get('POSTGRES_USER', 'postgres')
 POSTGRES_PASSWORD = os.environ.get('POSTGRES_PASSWORD', '123')
 POSTGRES_DB = os.environ.get('POSTGRES_DB', 'postgres')
