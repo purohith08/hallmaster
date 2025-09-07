@@ -1,8 +1,7 @@
 import pandas as pd
 from docx import Document
-import re
-from config import DEPARTMENT_ALIASES, ACADEMIC_YEARS, DEPT_SLOT_MAPPING
 from generate_seating_arrangement import standardize_department, get_slot_by_department, extract_departments
+from config import DEPARTMENT_ALIASES, ACADEMIC_YEARS, DEPT_SLOT_MAPPING
 
 # ------------------- STUDENT DATA -------------------
 def process_student_data(filepath):
@@ -57,6 +56,10 @@ def process_xlsx_hall_data(file_path):
 
 # ------------------- SCHEDULE DATA -------------------
 def process_schedule_data(file_path):
+    """
+    Process exam schedule from DOCX files.
+    Assign slot purely based on department mapping (DEPT_SLOT_MAPPING).
+    """
     schedule = []
     doc = Document(file_path)
 
@@ -64,27 +67,29 @@ def process_schedule_data(file_path):
         headers = []
         for i, row in enumerate(table.rows):
             cells = [cell.text.strip() for cell in row.cells]
+
             if i == 0:
                 headers = [h.lower().replace(' ', '_') for h in cells]
             else:
-                if len(cells) >= 4:
+                if len(cells) >= 4:  # Ensure enough columns
                     exam_data = {headers[j]: cells[j] for j in range(len(cells))}
-                    # Extract departments
+
+                    # Extract departments and assign slot
                     dept_info = exam_data.get('department', '')
                     if dept_info:
                         departments = extract_departments(dept_info)
                         if departments:
+                            # Assign slot based on first department
                             slot = get_slot_by_department(departments[0])
                             if slot:
                                 exam_data['slot'] = slot
-                    # Fallback slot
-                    if 'slot' not in exam_data:
-                        time_str = exam_data.get('time', '') or exam_data.get('time_slot', '')
-                        if any(x in time_str for x in ['9:30', '11:00', '9.30', '11.00']):
-                            exam_data['slot'] = 'I'
-                        elif any(x in time_str for x in ['12:00', '1:30', '12.00', '1.30']):
-                            exam_data['slot'] = 'II'
-                        elif any(x in time_str for x in ['2:30', '4:00', '2.30', '4.00']):
-                            exam_data['slot'] = 'III'
+                            else:
+                                exam_data['slot'] = None
+                        else:
+                            exam_data['slot'] = None
+                    else:
+                        exam_data['slot'] = None
+
                     schedule.append(exam_data)
+
     return schedule

@@ -1,49 +1,45 @@
 import pandas as pd
 from collections import defaultdict
-from config import EXAM_SLOTS, SESSIONS, DEPARTMENT_ALIASES, DEPT_SLOT_MAPPING
+from config import DEPARTMENT_ALIASES, DEPT_SLOT_MAPPING
 
 # -----------------------------
 # Generate Seating Arrangement
 # -----------------------------
-def generate_seating_arrangement(students, halls, schedule, exam_type, session_type):
+def generate_seating_arrangement(students, halls, schedule, exam_type, session_type=None):
     print("[DEBUG] Starting seating arrangement generation...")
 
+    # Students dataframe
     students_df = pd.DataFrame(students)
     students_df.rename(columns=lambda x: x.strip().lower().replace(" ", "_"), inplace=True)
     students_df['department'] = students_df['department'].apply(standardize_department)
     print(f"[DEBUG] Students DataFrame shape: {students_df.shape}")
 
+    # Halls and schedule
     halls_df = pd.DataFrame(halls)
     schedule_df = pd.DataFrame(schedule)
     print(f"[DEBUG] Halls shape: {halls_df.shape}, Schedule shape: {schedule_df.shape}")
 
-    valid_slots = SESSIONS.get(session_type, [])
-    schedule_df = schedule_df[schedule_df['slot'].isin(valid_slots)]
-    print(f"[DEBUG] Valid slots for session '{session_type}': {valid_slots}")
-
-    # Map exams to departments
-    exam_department_map = {}
-    for _, exam in schedule_df.iterrows():
-        dept_info = exam.get('department', '')
-        if dept_info:
-            depts = extract_departments(dept_info)
-            exam_department_map[exam['course_code']] = depts
+    # All valid slots
+    valid_slots = ['I', 'II', 'III']
+    print(f"[DEBUG] Processing all slots: {valid_slots}")
 
     arrangements = []
 
     # Assign students to halls per slot
     for slot in valid_slots:
         slot_departments = DEPT_SLOT_MAPPING.get(slot, [])
-        slot_exams = schedule_df[schedule_df['slot'] == slot]
+        # Filter exams that have departments matching this slot
+        slot_exams = schedule_df[schedule_df['department'].apply(
+            lambda d: any(dept in slot_departments for dept in extract_departments(d))
+        )]
         print(f"[DEBUG] Slot {slot} departments: {slot_departments}, Exams: {len(slot_exams)}")
 
         for _, exam in slot_exams.iterrows():
             course_code = exam['course_code']
             course_name = exam['course_name']
             date = exam['date']
-            exam_departments = exam_department_map.get(course_code, [])
+            exam_departments = extract_departments(exam.get('department', ''))
             valid_exam_departments = [d for d in exam_departments if d in slot_departments]
-
             if not valid_exam_departments:
                 continue
 
@@ -81,8 +77,8 @@ def generate_seating_arrangement(students, halls, schedule, exam_type, session_t
                         'course_name': course_name,
                         'date': date,
                         'slot': slot,
-                        'start_time': EXAM_SLOTS[slot]['start'],
-                        'end_time': EXAM_SLOTS[slot]['end'],
+                        'start_time': None,
+                        'end_time': None,
                         'exam_type': exam_type
                     })
 
